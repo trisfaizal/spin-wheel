@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin Wheel - Participant Edition</title>
+
+<style>
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.container {
+    max-width: 800px;
+    width: 100%;
+}
+#wheel-container {
+    position: relative;
+    width: 350px;
+    height: 350px;
+    margin: 20px auto;
+}
+#pointer {
+    width: 0;
+    height: 0;
+    border-left: 25px solid transparent;
+    border-right: 25px solid transparent;
+    border-bottom: 40px solid #e63946;
+    position: absolute;
+    top: -45px;
+    left: calc(50% - 25px);
+    z-index: 10;
+}
+#wheel {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 10px solid #333;
+    position: relative;
+    transition: transform 4s ease-out;
+    overflow: hidden;
+}
+.slice {
+    position: absolute;
+    width: 50%;
+    height: 50%;
+    top: 50%;
+    left: 50%;
+    transform-origin: 0% 0%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 4px;
+    text-align: center;
+}
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    background: #1d3557;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+}
+button:hover {
+    background: #457b9d;
+}
+textarea {
+    width: 100%;
+    height: 120px;
+    padding: 8px;
+    font-size: 14px;
+}
+.participant-list {
+    margin-top: 10px;
+}
+.participant-item {
+    background: white;
+    padding: 8px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h2>🎡 Spin Wheel – Participant Edition (ACD)</h2>
+
+<!-- INPUT AREA -->
+<h3>➕ Tambah Peserta (manual atau paste banyak nama)</h3>
+
+<textarea id="bulkInput" placeholder="Masukkan nama peserta, 1 baris 1 nama"></textarea>
+<br>
+<button onclick="addBulk()">Tambah Banyak</button>
+
+<div style="margin-top:15px; display:flex; gap:10px;">
+    <input id="singleInput" type="text" placeholder="Tambah satu nama" style="flex:1; padding:8px;">
+    <button onclick="addSingle()">Tambah</button>
+</div>
+
+<h3>📋 Daftar Peserta</h3>
+<div id="participantList" class="participant-list"></div>
+
+<!-- WHEEL -->
+<div id="wheel-container">
+    <div id="pointer"></div>
+    <div id="wheel"></div>
+</div>
+
+<center>
+<button onclick="spin()">SPIN</button>
+</center>
+
+<h3>🏆 Pemenang:</h3>
+<div id="winnerBox" style="font-size:20px; font-weight:bold; color:#e63946;"></div>
+
+</div>
+
+<script>
+let participants = [];
+let rotation = 0;
+
+// Refresh UI list
+function updateParticipantList() {
+    const box = document.getElementById("participantList");
+    box.innerHTML = "";
+
+    participants.forEach((name, index) => {
+        const item = document.createElement("div");
+        item.className = "participant-item";
+        item.innerHTML = `
+            ${index + 1}. ${name}
+            <button onclick="removeParticipant(${index})" style="background:#e63946; color:white; padding:5px 8px; border-radius:4px;">Hapus</button>
+        `;
+        box.appendChild(item);
+    });
+
+    buildWheel();
+}
+
+// Add multiple names
+function addBulk() {
+    const lines = document.getElementById("bulkInput").value.trim().split("\n");
+
+    lines.forEach(l => {
+        const name = l.trim();
+        if (name) participants.push(name);
+    });
+
+    document.getElementById("bulkInput").value = "";
+    updateParticipantList();
+}
+
+// Add single name
+function addSingle() {
+    const name = document.getElementById("singleInput").value.trim();
+    if (name) {
+        participants.push(name);
+        document.getElementById("singleInput").value = "";
+        updateParticipantList();
+    }
+}
+
+// Remove name
+function removeParticipant(index) {
+    participants.splice(index, 1);
+    updateParticipantList();
+}
+
+// Build Wheel
+function buildWheel() {
+    const wheel = document.getElementById("wheel");
+    wheel.innerHTML = "";
+
+    if (participants.length === 0) return;
+
+    const sliceAngle = 360 / participants.length;
+
+    participants.forEach((name, i) => {
+        const slice = document.createElement("div");
+        slice.className = "slice";
+
+        slice.style.background = `hsl(${i * (360/participants.length)}, 70%, 50%)`;
+        slice.style.transform = `rotate(${i * sliceAngle}deg) skewY(${90 - sliceAngle}deg)`;
+
+        slice.innerHTML = `
+            <div style="transform: skewY(${-(90 - sliceAngle)}deg) rotate(${sliceAngle/2}deg);">
+                ${name}
+            </div>
+        `;
+
+        wheel.appendChild(slice);
+    });
+}
+
+// Spin function + auto remove winner
+function spin() {
+    if (participants.length === 0) {
+        alert("Tidak ada peserta!");
+        return;
+    }
+
+    const rand = Math.floor(Math.random() * 360);
+    rotation += 1080 + rand; // min 3 putaran
+    document.getElementById("wheel").style.transform = `rotate(${rotation}deg)`;
+
+    setTimeout(() => {
+        // Hitung pemenang berdasarkan sudut
+        const normalized = (rotation % 360 + 360) % 360;
+        const winnerIndex = Math.floor((participants.length - (normalized / (360 / participants.length))) % participants.length);
+
+        const winner = participants[winnerIndex];
+        document.getElementById("winnerBox").innerText = winner;
+
+        // Hapus pemenang dari list
+        participants.splice(winnerIndex, 1);
+        updateParticipantList();
+
+    }, 4200);
+}
+
+// Initial render
+updateParticipantList();
+</script>
+
+</body>
+</html>
